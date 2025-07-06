@@ -10,10 +10,22 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const client = await connectDB(); // ✅ parenthesis
+  const client = await connectDB();
   const db = client.db("priya");
   const body = await request.json();
 
-  const result = await db.collection("transactions").insertOne(body);
-  return NextResponse.json({ insertedId: result.insertedId });
+  const { description, amount } = body;
+
+  if (!description || typeof amount !== "number") {
+    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  }
+
+  const result = await db.collection("transactions").insertOne({
+    description,
+    amount,
+    date: new Date().toISOString(), // 👈 critical fix!
+  });
+
+  return NextResponse.json({ insertedId: result.insertedId }, { status: 201 });
 }
+
