@@ -6,85 +6,70 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-  Cell,
   Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
 } from "recharts";
 
+type Transaction = {
+  _id: string;
+  description: string;
+  amount: number;
+  date: string;
+};
+
+type ChartData = {
+  month: string;
+  total: number;
+};
+
 export default function ExpenseChart({ refresh }: { refresh: boolean }) {
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<ChartData[]>([]);
 
   useEffect(() => {
-    fetch("/api/transactions")
-      .then((res) => res.json())
-      .then((transactions) => {
-        const monthlyTotals: { [key: string]: number } = {};
+    const fetchData = async () => {
+      const res = await fetch("/api/transactions");
+      const transactions: Transaction[] = await res.json();
 
-        transactions.forEach((txn: any) => {
-          const date = new Date(txn.date);
-          const month = date.toLocaleString("default", {
-            month: "short",
-            year: "2-digit",
-          });
+      const monthlyTotals: Record<string, number> = {};
 
-          monthlyTotals[month] = (monthlyTotals[month] || 0) + parseFloat(txn.amount);
-        });
-
-        const formattedData = Object.entries(monthlyTotals).map(([month, amount]) => ({
-          month,
-          amount: parseFloat(amount.toFixed(2)),
-        }));
-
-        setData(formattedData);
+      transactions.forEach((t) => {
+        const date = new Date(t.date);
+        const month = `${date.toLocaleString("default", {
+          month: "short",
+        })}-${date.getFullYear()}`;
+        monthlyTotals[month] = (monthlyTotals[month] || 0) + t.amount;
       });
+
+      const formattedData: ChartData[] = Object.entries(monthlyTotals).map(
+        ([month, total]) => ({
+          month,
+          total,
+        })
+      );
+
+      setData(formattedData);
+    };
+
+    fetchData();
   }, [refresh]);
 
   return (
-    <div className="bg-white shadow-md rounded-xl p-6 mt-8">
-      <h2 className="text-xl font-bold mb-2 text-center text-green-800">
-        📅 Monthly Expense Overview
+    <div>
+      <h2 className="text-xl font-semibold text-green-800 mb-2">
+        📊 Monthly Expense Overview
       </h2>
-
-      {/* ✅ Summary line display above chart */}
-      <div className="text-sm text-center mb-4">
-        <div className="font-medium text-gray-700 flex flex-wrap justify-center gap-4">
-          {data.map((item) => (
-            <div key={item.month} className="flex flex-col items-center">
-              <span className="font-semibold">{item.month}</span>
-              <span>₹{item.amount.toLocaleString("en-IN")}</span>
-            </div>
-          ))}
-        </div>
+      <div className="w-full h-72 bg-white rounded shadow p-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="month" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="total" fill="#86efac" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-
-      {/* ✅ Chart */}
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="month" />
-          <YAxis />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-            {data.map((_, index) => (
-              <Cell key={index} fill="#86efac" /> 
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
     </div>
   );
 }
-
-// ✅ Custom tooltip
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white border shadow-sm px-3 py-2 rounded text-sm text-green-900">
-        <p className="font-semibold">{label}</p>
-        <p>{`₹${Number(payload[0].value).toFixed(2)}`}</p>
-      </div>
-    );
-  }
-  return null;
-};
