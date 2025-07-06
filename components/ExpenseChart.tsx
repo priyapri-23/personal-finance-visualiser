@@ -18,40 +18,32 @@ type Transaction = {
   date: string;
 };
 
-type DailyData = {
-  day: string;
+type ChartData = {
+  month: string;
   total: number;
 };
 
 export default function ExpenseChart({ refresh }: { refresh: boolean }) {
-  const [data, setData] = useState<DailyData[]>([]);
+  const [data, setData] = useState<ChartData[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       const res = await fetch("/api/transactions");
       const transactions: Transaction[] = await res.json();
 
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      const dailyTotals: Record<string, number> = {};
+      const monthlyTotals: Record<string, number> = {};
 
       transactions.forEach((t) => {
         const date = new Date(t.date);
-        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
-          const day = date.getDate().toString();
-          dailyTotals[day] = (dailyTotals[day] || 0) + t.amount;
-        }
+        const month = `${date.toLocaleString("default", {
+          month: "short",
+        })}-${date.getFullYear()}`;
+        monthlyTotals[month] = (monthlyTotals[month] || 0) + Number(t.amount);
       });
 
-      const formattedData: DailyData[] = Array.from({ length: 31 }, (_, i) => {
-        const day = (i + 1).toString();
-        return {
-          day,
-          total: dailyTotals[day] || 0,
-        };
-      }).filter((d) => d.total > 0); // Only show days with expenses
+      const formattedData: ChartData[] = Object.entries(monthlyTotals).map(
+        ([month, total]) => ({ month, total })
+      );
 
       setData(formattedData);
     };
@@ -62,18 +54,15 @@ export default function ExpenseChart({ refresh }: { refresh: boolean }) {
   return (
     <div>
       <h2 className="text-xl font-semibold text-green-800 mb-2">
-        📊 Daily Expense Overview (This Month)
+        📊 Monthly Expense Overview
       </h2>
       <div className="w-full h-72 bg-white rounded shadow p-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="day" />
+            <XAxis dataKey="month" />
             <YAxis domain={[0, 60000]} />
-            <Tooltip
-              formatter={(value: number) => `₹${value}`}
-              labelFormatter={(label) => `Day ${label}`}
-            />
+            <Tooltip />
             <Bar dataKey="total" fill="#86efac" />
           </BarChart>
         </ResponsiveContainer>
