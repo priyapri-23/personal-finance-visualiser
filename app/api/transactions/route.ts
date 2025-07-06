@@ -1,9 +1,8 @@
-// app/api/transactions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/lib/mongo";
+import connectDB from "@/lib/mongo";
 
 export async function GET() {
-  const client = await clientPromise;
+  const client = await connectDB(); // ✅ parenthesis because it's a function
   const db = client.db("priya");
   const transactions = await db.collection("transactions").find({}).toArray();
 
@@ -11,7 +10,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const client = await clientPromise;
+  const client = await connectDB(); // ✅ parenthesis
   const db = client.db("priya");
   const body = await request.json();
 
