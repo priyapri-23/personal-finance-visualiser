@@ -17,9 +17,10 @@ export default function TransactionForm({
     if (!description || !amount || !date) return;
 
     await fetch("/api/transactions", {
-      method: "POST",
-      body: JSON.stringify({ description, amount, date }),
-    });
+  method: "POST",
+  body: JSON.stringify({ description, amount, date }),
+  headers: { "Content-Type": "application/json" },
+});
 
     setDescription("");
     setAmount("");
