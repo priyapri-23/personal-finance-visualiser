@@ -2,76 +2,96 @@
 
 import { useState } from "react";
 
+type Transaction = {
+  description: string;
+  amount: number;
+  date: string;
+};
+
 export default function TransactionForm({ onTransactionAdded }: { onTransactionAdded: () => void }) {
   const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState<number | "">("");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description || !amount || !date) {
-      setError("Please fill in all fields.");
+    const newErrors: { [key: string]: string } = {};
+    
+    if (!description) newErrors.description = "Description is required.";
+    if (!amount) newErrors.amount = "Amount is required.";
+    if (!date) newErrors.date = "Date is required.";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    setLoading(true);
-    setError("");
+
     try {
+      const transaction: Transaction = {
+        description,
+        amount: Number(amount),
+        date,
+      };
+
       const res = await fetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description,
-          amount: Number(amount),
-          date,
-        }),
+        body: JSON.stringify(transaction),
       });
-      const data = await res.json();
+
       if (res.ok) {
         setDescription("");
         setAmount("");
         setDate(new Date().toISOString().split("T")[0]);
-        onTransactionAdded();
+        setErrors({});
+        onTransactionAdded(); // trigger refresh
       } else {
-        setError(data.error || "Failed to add transaction.");
+        console.error("Failed to add transaction:", await res.text());
       }
     } catch (err) {
-      setError("Something went wrong.");
-    } finally {
-      setLoading(false);
+      console.error("Error during add transaction:", err);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <input
-        type="text"
-        className="w-full p-2 border rounded"
-        placeholder="Description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-    />
-      <input
-        type="number"
-        className="w-full p-2 border rounded"
-        placeholder="Amount"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-    />
-      <input
-        type="date"
-        className="w-full p-2 border rounded"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
+    <form onSubmit={handleSubmit} className="space-y-4 bg-white p-4 rounded shadow">
+      <h2 className="text-xl font-semibold text-green-800">➕ Add Transaction</h2>
+
+      <div>
+        <input
+          type="text"
+          placeholder="Description"
+          className="w-full p-2 border rounded"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
         />
-      {error && <p className="text-red-500 text-sm">{error}</p>}
-      <button
-        type="submit"
-        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-        disabled={loading}
-      >
-        {loading ? "Adding..." : "Add Transaction"}
+        {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
+      </div>
+
+      <div>
+        <input
+          type="number"
+          placeholder="Amount"
+          className="w-full p-2 border rounded"
+          value={amount}
+          onChange={(e) => setAmount(Number(e.target.value))}
+        />
+        {errors.amount && <p className="text-red-500 text-sm">{errors.amount}</p>}
+      </div>
+
+      <div>
+        <input
+          type="date"
+          className="w-full p-2 border rounded"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
+        {errors.date && <p className="text-red-500 text-sm">{errors.date}</p>}
+      </div>
+
+      <button type="submit" className="bg-green-600 text-white p-2 px-4 rounded hover:bg-green-700">
+        Add Transaction
       </button>
     </form>
   );
